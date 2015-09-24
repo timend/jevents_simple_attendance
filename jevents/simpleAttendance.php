@@ -21,13 +21,35 @@ class plgJEventsSimpleAttendance extends JPlugin
         return !empty($result);
     }
     
+    function getAttendees($repetitionId) {
+        $db    = JFactory::getDbo();
+        $query = $db->getQuery(true);            
+        $query->select('user_id') 
+                ->from($db->quoteName('#__simple_attendance'))
+                ->where(array('rp_id = '.$repetitionId));
+        $db->setQuery($query);
+        $results = $db->loadObjectList();
+        
+        $attendees = array();
+        
+        foreach ($results as $result) {
+            $attendees[] = JFactory::getUser($result->user_id);
+        }
+        
+        return $attendees;
+    }
+    
     function onDisplayCustomFields(&$row){        
         $user = JFactory::getUser();
         //$row->_attendance = "Repition ID: " . $row->rp_id() . " User Id: " . $user->id;
         // $row->_attendance = "";
         JHtml::_('jquery.framework');
         $doesAttend = $this->doesAttend($user->id, $row->rp_id()) ? 'checked = "checked"' : '';
-        $row->_attendance =         
+        $attendees = $this->getAttendees($row->rp_id());
+        $getUserName = function($user) {return $user->username;};
+        $row->_attendeesList = implode(', ', array_map($getUserName, $attendees));
+        
+        $row->_attendance = 
         <<<EOT
         <input type="checkbox" name="simple_attendance" value="true" id="simple_attendance"{$doesAttend}><label for="simple_attendance">Ich nehme teil</label>
         <script>
@@ -52,15 +74,18 @@ EOT;
 
     static function fieldNameArray($layout='detail')
     {
-        if ($layout != "detail") {
+        if ($layout != "detail" && $layout != "list") {
             return array();
         }
         
         $labels = array();
         $values = array();
+        
         $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
         $values[] = "JEV_SIMPLE_ATTENDANCE_ENABLE";
-
+        $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE_LIST", true);
+        $values[] = "JEV_SIMPLE_ATTENDANCE_LIST_ENABLE";
+                
         $return = array();
         $return['group'] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
         $return['values'] = $values;
@@ -73,10 +98,17 @@ EOT;
     {
         if ($code == "JEV_SIMPLE_ATTENDANCE_ENABLE")
         {
-                if(isset($row->_attendance))
-                {
-                        return $row->_attendance;
-                }			
+            if(isset($row->_attendance))
+            {
+                return $row->_attendance;
+            }			
+        } 
+        elseif ($code == "JEV_SIMPLE_ATTENDANCE_LIST_ENABLE")
+        {
+            if(isset($row->_attendeesList))
+            {
+                return $row->_attendeesList;
+            }
         }
     }
 }

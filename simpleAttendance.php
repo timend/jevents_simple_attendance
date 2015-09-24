@@ -10,15 +10,52 @@ $lang->load("plg_jevents_simple_attendance", JPATH_ADMINISTRATOR);
 
 class plgJEventsSimpleAttendance extends JPlugin
 {
-    function onDisplayCustomFields(&$row){            
-        $row->_attendance = "DisplayCustomFields: " . $row->rp_id();
+    function doesAttend($userId, $repetitionId) {
+        $db    = JFactory::getDbo();
+        $query = $db->getQuery(true);            
+        $query->select('*')
+                ->from($db->quoteName('#__simple_attendance'))
+                ->where(array('rp_id = '.$repetitionId, 'user_id = '.$userId));
+        $db->setQuery($query);
+        $result = $db->loadObjectList();
+        return !empty($result);
+    }
+    
+    function onDisplayCustomFields(&$row){        
+        $user = JFactory::getUser();
+        //$row->_attendance = "Repition ID: " . $row->rp_id() . " User Id: " . $user->id;
+        // $row->_attendance = "";
+        JHtml::_('jquery.framework');
+        $doesAttend = $this->doesAttend($user->id, $row->rp_id()) ? 'checked = "checked"' : '';
+        $row->_attendance =         
+        <<<EOT
+        <input type="checkbox" name="simple_attendance" value="true" id="simple_attendance"{$doesAttend}><label for="simple_attendance">Ich nehme teil</label>
+        <script>
+        (function($) {
+            $(document).ready(function() {
+                $('#simple_attendance').change( function(){                
+                    var attend = $('#simple_attendance').is(':checked') ? 'true' : 'false';
+                    $.get('index.php?option=com_ajax&plugin=simpleAttendance&format=json&rp_id={$row->rp_id()}&attend=' + attend, function(data){
+                        //parse the JSON
+                        var response = jQuery.parseJSON(data);
+
+                        //do something with the JSON object
+                    });
+                });
+            });
+        })(jQuery);
+        </script>
+EOT;
+                       
         return $row->_attendance;
     }
 
     static function fieldNameArray($layout='detail')
     {
-        if ($layout != "detail")
-                return array();
+        if ($layout != "detail") {
+            return array();
+        }
+        
         $labels = array();
         $values = array();
         $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE", true);

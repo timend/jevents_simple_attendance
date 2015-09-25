@@ -39,6 +39,14 @@ class plgJEventsSimpleAttendance extends JPlugin
         return $attendees;
     }
     
+    function onDisplayCustomFieldsMultiRow($rows)
+    {
+        //TODO: Optimize if necessary
+        foreach($rows as $row) {
+            $this->onDisplayCustomFields($row);
+        }
+    }
+    
     function onDisplayCustomFields(&$row){        
         $user = JFactory::getUser();
         //$row->_attendance = "Repition ID: " . $row->rp_id() . " User Id: " . $user->id;

@@ -35,11 +35,29 @@ class plgJEventsSimpleAttendance extends JPlugin
         $notMeFilter = function($otherUser) use($userId) {return $userId != $otherUser->id;};
         
         $result = new stdClass();
+        $result->repetitionId = $repetitionId;
         $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
         $result->attendMyself = count($attendees) > count($result->otherAttendees);
         return $result;
     }
     //End of duplicated code from plgAjaxSimpleAttendance
+    
+    public function onContentPrepare($context, &$row, &$params, $page = 0)
+    {
+        $document = JFactory::getDocument();
+        $document->addScript(JURI::base(). "plugins/jevents/simpleAttendance/simpleAttendance.js");
+        
+        $lang = JFactory::getLanguage();
+        $lang->load("plg_jevents_simple_attendance", JPATH_ADMINISTRATOR);
+
+        $localizedProperties = new stdClass();
+        $localizedProperties->ATTENDEES_LBL = $lang->_('PLG_JEVENTS_SIMPLE_ATTENDANCE_ATTENDEES_LBL');
+        $localizedProperties->ACTION_ATTEND = $lang->_('PLG_JEVENTS_SIMPLE_ATTENDANCE_ACTION_ATTEND');
+        $localizedProperties->ACTION_UNATTEND = $lang->_('PLG_JEVENTS_SIMPLE_ATTENDANCE_ACTION_UNATTEND');
+        $localizedProperties->ME_LBL = $lang->_('PLG_JEVENTS_SIMPLE_ATTENDANCE_ME_LBL');
+        $localizedProperties->NONE_LBL = $lang->_('PLG_JEVENTS_SIMPLE_ATTENDANCE_NONE_LBL');
+        $document->addScriptDeclaration("var simpleAttendance = ". json_encode($localizedProperties). ";");
+    }
     
     function onDisplayCustomFieldsMultiRow($rows)
     {
@@ -52,51 +70,12 @@ class plgJEventsSimpleAttendance extends JPlugin
     function onDisplayCustomFields(&$row){                  
         JHtml::_('jquery.framework');        
         $userId       = JFactory::getUser()->id;
-        $attendenceInfoJson = json_encode($this->getAttendanceInfo($row->rp_id(), $userId));         
+        $attendenceInfo = $this->getAttendanceInfo($row->rp_id(), $userId);                     
         
-        //TODO: Optimize multiple incarnations of the same script in a single page
-        $row->_attendance =                                 
-        <<<EOT
-        <div class="simple_attendance" id="simple_attendance_{$row->rp_id()}"></div>        
-        <script>
-        (function($) {
-            $(document).ready(function() {                                                       
-                var renderList = function(items) {   
-                    if (items.length == 0) {
-                        return 'keine';
-                    } else if (items.length == 1) {
-                        return items[0];
-                    } else {    
-                        return items.slice(0, items.length-1).join(', ') + ' und ' + items[items.length - 1] + ' (' + items.length + ')';                    
-                    }
-                };
+        $attendenceInfoEscaped = htmlspecialchars(json_encode($attendenceInfo));
+        $row->_attendance = 
+            "<div class=\"simple_attendance\" id=\"simple_attendance_{$attendenceInfo->repetitionId}\" data-initial=\"$attendenceInfoEscaped\"></div>";
         
-                var renderAttendance = function(element, attendanceInfo) {                                        
-                    var attendees = attendanceInfo.attendMyself ? ['Ich'].concat(attendanceInfo.otherAttendees) : attendanceInfo.otherAttendees;                        
-                    var html = 'Teilnehmer: ' + renderList(attendees);                                            
-                    
-                    if (attendanceInfo.attendMyself) {
-                        html += '<a>Nicht mehr teilnehmen</a>';
-                    } else {
-                        html += '<a>Auch teilnehmen</a>';
-                    }
-                        
-                    element.html(html);
-                    element.find('a').click(function() {
-                        $.get('index.php?option=com_ajax&plugin=simpleAttendance&format=json&rp_id={$row->rp_id()}&attend=' + !attendanceInfo.attendMyself, function(data){
-                            renderAttendance(element, data.data[0]);                    
-                        });
-                    });
-                };                        
-                    
-                var initialAttendenceInfo = $attendenceInfoJson;
-                    
-                renderAttendance($('#simple_attendance_{$row->rp_id()}'), initialAttendenceInfo);
-            });
-        })(jQuery);
-        </script>        
-EOT;
-                       
         return $row->_attendance;
     }
 

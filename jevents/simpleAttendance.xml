@@ -13,7 +13,8 @@
 	</languages>
 	<files>
 		<filename plugin="simpleAttendance">simpleAttendance.php</filename>		
-                <filename>simpleAttendance.js</filename>		
+        <filename>simpleAttendance.js</filename>		
+		<folder>sql</folder>		
 	</files>        
         <install>
             <sql>

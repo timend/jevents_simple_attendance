@@ -10,23 +10,13 @@ $lang->load("plg_jevents_simple_attendance", JPATH_ADMINISTRATOR);
 
 class plgJEventsSimpleAttendance extends JPlugin
 {
-    function doesAttend($userId, $repetitionId) {
-        $db    = JFactory::getDbo();
-        $query = $db->getQuery(true);            
-        $query->select('*')
-                ->from($db->quoteName('#__simple_attendance'))
-                ->where(array('rp_id = '.$repetitionId, 'user_id = '.$userId));
-        $db->setQuery($query);
-        $result = $db->loadObjectList();
-        return !empty($result);
-    }
-    
-    function getAttendees($repetitionId) {
+    //TODO: Unduplicate these two functions from plgAjaxSimpleAttendance
+    function getAttendees($repetitionId) {        
         $db    = JFactory::getDbo();
         $query = $db->getQuery(true);            
         $query->select('user_id') 
                 ->from($db->quoteName('#__simple_attendance'))
-                ->where(array('rp_id = '.$repetitionId));
+                ->where(array('rp_id = '.(int)$repetitionId));
         $db->setQuery($query);
         $results = $db->loadObjectList();
         
@@ -37,7 +27,19 @@ class plgJEventsSimpleAttendance extends JPlugin
         }
         
         return $attendees;
+    }   
+    
+    function getAttendanceInfo($repetitionId, $userId) {
+        $attendees = $this->getAttendees($repetitionId);
+        $getUserName = function($user) {return $user->username;};
+        $notMeFilter = function($otherUser) use($userId) {return $userId != $otherUser->id;};
+        
+        $result = new stdClass();
+        $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
+        $result->attendMyself = count($attendees) > count($result->otherAttendees);
+        return $result;
     }
+    //End of duplicated code from plgAjaxSimpleAttendance
     
     function onDisplayCustomFieldsMultiRow($rows)
     {
@@ -47,34 +49,52 @@ class plgJEventsSimpleAttendance extends JPlugin
         }
     }
     
-    function onDisplayCustomFields(&$row){        
-        $user = JFactory::getUser();
-        //$row->_attendance = "Repition ID: " . $row->rp_id() . " User Id: " . $user->id;
-        // $row->_attendance = "";
-        JHtml::_('jquery.framework');
-        $doesAttend = $this->doesAttend($user->id, $row->rp_id()) ? 'checked = "checked"' : '';
-        $attendees = $this->getAttendees($row->rp_id());
-        $getUserName = function($user) {return $user->username;};
-        $row->_attendeesList = implode(', ', array_map($getUserName, $attendees));
+    function onDisplayCustomFields(&$row){                  
+        JHtml::_('jquery.framework');        
+        $userId       = JFactory::getUser()->id;
+        $attendenceInfoJson = json_encode($this->getAttendanceInfo($row->rp_id(), $userId));         
         
-        $row->_attendance = 
+        //TODO: Optimize multiple incarnations of the same script in a single page
+        $row->_attendance =                                 
         <<<EOT
-        <input type="checkbox" name="simple_attendance" value="true" id="simple_attendance"{$doesAttend}><label for="simple_attendance">Ich nehme teil</label>
+        <div class="simple_attendance" id="simple_attendance_{$row->rp_id()}"></div>        
         <script>
         (function($) {
-            $(document).ready(function() {
-                $('#simple_attendance').change( function(){                
-                    var attend = $('#simple_attendance').is(':checked') ? 'true' : 'false';
-                    $.get('index.php?option=com_ajax&plugin=simpleAttendance&format=json&rp_id={$row->rp_id()}&attend=' + attend, function(data){
-                        //parse the JSON
-                        var response = jQuery.parseJSON(data);
-
-                        //do something with the JSON object
+            $(document).ready(function() {                                                       
+                var renderList = function(items) {   
+                    if (items.length == 0) {
+                        return 'keine';
+                    } else if (items.length == 1) {
+                        return items[0];
+                    } else {    
+                        return items.slice(0, items.length-1).join(', ') + ' und ' + items[items.length - 1] + ' (' + items.length + ')';                    
+                    }
+                };
+        
+                var renderAttendance = function(element, attendanceInfo) {                                        
+                    var attendees = attendanceInfo.attendMyself ? ['Ich'].concat(attendanceInfo.otherAttendees) : attendanceInfo.otherAttendees;                        
+                    var html = 'Teilnehmer: ' + renderList(attendees);                                            
+                    
+                    if (attendanceInfo.attendMyself) {
+                        html += '<a>Nicht mehr teilnehmen</a>';
+                    } else {
+                        html += '<a>Auch teilnehmen</a>';
+                    }
+                        
+                    element.html(html);
+                    element.find('a').click(function() {
+                        $.get('index.php?option=com_ajax&plugin=simpleAttendance&format=json&rp_id={$row->rp_id()}&attend=' + !attendanceInfo.attendMyself, function(data){
+                            renderAttendance(element, data.data[0]);                    
+                        });
                     });
-                });
+                };                        
+                    
+                var initialAttendenceInfo = $attendenceInfoJson;
+                    
+                renderAttendance($('#simple_attendance_{$row->rp_id()}'), initialAttendenceInfo);
             });
         })(jQuery);
-        </script>
+        </script>        
 EOT;
                        
         return $row->_attendance;
@@ -91,8 +111,6 @@ EOT;
         
         $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
         $values[] = "JEV_SIMPLE_ATTENDANCE_ENABLE";
-        $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE_LIST", true);
-        $values[] = "JEV_SIMPLE_ATTENDANCE_LIST_ENABLE";
                 
         $return = array();
         $return['group'] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
@@ -110,13 +128,6 @@ EOT;
             {
                 return $row->_attendance;
             }			
-        } 
-        elseif ($code == "JEV_SIMPLE_ATTENDANCE_LIST_ENABLE")
-        {
-            if(isset($row->_attendeesList))
-            {
-                return $row->_attendeesList;
-            }
         }
     }
 }

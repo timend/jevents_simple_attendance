@@ -34,7 +34,7 @@ class plgAjaxSimpleAttendance extends JPlugin
         $notMeFilter = function($otherUser) use($userId) {return $userId != $otherUser->id;};
         
         $result = new stdClass();
-        $result->repititionId = $repetitionId;
+        $result->repetitionId = $repetitionId;
         $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
         $result->attendMyself = count($attendees) > count($result->otherAttendees);
         return $result;

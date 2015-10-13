@@ -9,7 +9,7 @@ $lang = JFactory::getLanguage();
 $lang->load("plg_jevents_simple_attendance", JPATH_ADMINISTRATOR);
 
 class plgJEventsSimpleAttendance extends JPlugin
-{
+{    
     //TODO: Unduplicate these two functions from plgAjaxSimpleAttendance
     function getAttendees($repetitionId) {        
         $db    = JFactory::getDbo();
@@ -75,12 +75,62 @@ class plgJEventsSimpleAttendance extends JPlugin
         $attendenceInfoEscaped = htmlspecialchars(json_encode($attendenceInfo));
         $row->_attendance = 
             "<div class=\"simple_attendance\" id=\"simple_attendance_{$attendenceInfo->repetitionId}\" data-initial=\"$attendenceInfoEscaped\"></div>";
-        
+            
         return $row->_attendance;
     }
+    
+    function getRoles($row) {
+        $db    = JFactory::getDbo();
+        $query = $db->getQuery(true);            
+        $query->select('rawdata') 
+                ->from($db->quoteName('#__jevents_vevent'))
+                ->where(array('ev_id = '.(int)$row->ev_id()));
+        $db->setQuery($query);
+        $results = $db->loadObjectList();
+        
+        $rawData = unserialize($results[0]->rawdata);
+        
+        if (isset($rawData['custom_AttendanceRoles'])) {
+            return $rawData['custom_AttendanceRoles'];
+        } else {
+            return array();
+        }
+    }
+    
+    function onEditCustom(&$row, &$customFields){ 
+         $customField = array();
+         $customField['group'] = 'default';
+         $customField['label'] = 'TestLabel';
+                  
+         $roles = $this->getRoles($row);
+         $roleToInput = function($index, $role) { 
+             return "<tr><td><input class=\"attendanceRole\" type=\"text\" name=\"custom_AttendanceRoles[$index][name]\" value=\"{$role['name']}\"/></td>".
+                    "<td><input type=\"text\" name=\"custom_AttendanceRoles[$index][count]\" value=\"{$role['count']}\"/></td>".
+                    "<td><a class=\"btn btn-small removeAttendanceRole\">Löschen</a></td>".
+                    "</tr>";              
+         };
+         
+         $input = '<table id="attendanceRoles"><tr><th>Art der Teilnehmer</th><th>Zielanzahl</th><th></tr>' . join('', array_map($roleToInput, array_keys($roles), $roles)) . '</table>';
+         
+         $customField['input'] = $input . '<br/><a class="btn btn-small" id="addAttendanceRole">Teilnehmer-Art hinzufügen</a>';
+         $customFields['JEV_SIMPLE_ATTENDANCE_OPTIONS'] = $customField;
+    }    
 
     static function fieldNameArray($layout='detail')
     {
+        if ($layout == "edit") {
+            $labels = array();
+            $values = array();
+            $labels[] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
+            $values[] = "JEV_SIMPLE_ATTENDANCE_OPTIONS";
+
+            $return = array();
+            $return['group'] = JText::_("JEV_SIMPLE_ATTENDANCE", true);
+            $return['values'] = $values;
+            $return['labels'] = $labels;
+            return $return;
+        }
+        
         if ($layout != "detail" && $layout != "list") {
             return array();
         }
@@ -107,6 +157,13 @@ class plgJEventsSimpleAttendance extends JPlugin
             {
                 return $row->_attendance;
             }			
-        }
+        } 
+        else if ($code == "JEV_SIMPLE_ATTENDANCE_OPTIONS")
+        {
+            if(isset($row->_attendanceOptions))
+            {
+                return $row->_attendanceOptions;
+            }			
+        }    
     }
 }

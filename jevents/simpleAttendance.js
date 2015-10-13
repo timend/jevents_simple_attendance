@@ -28,10 +28,39 @@
             });
         };                        
 
+        $.fn.max = function(selector) { 
+            return Math.max.apply(null, this.map(function(index, el) { return selector.apply(el); }).get() ); 
+        }
+
+        $.fn.min = function(selector) { 
+            return Math.min.apply(null, this.map(function(index, el) { return selector.apply(el); }).get() );
+        }
+
+        var addRole = function(button) {            
+            var index = $('input.attendanceRole').max(function() {
+                return parseInt(this.name.match(/custom_AttendanceRoles\[(\d+)\]/)[1]);
+            }) + 1;
+            $('#attendanceRoles tr:last').after(
+                '<tr>' +
+                '<td><input class="attendanceRole" type="text" name="custom_AttendanceRoles['+index+'][name]" value=""/></td>' +
+                '<td><input type="text" name="custom_AttendanceRoles['+index+'][count]" value=""/></td>' +
+                '<td><a class=\"btn btn-small removeAttendanceRole\">Löschen</a></td>' +
+                '</tr>'
+            );
+        }
+        
         $('.simple_attendance').each (function() {
             var $this = $(this);
             var attendanceInfo = $this.data('initial'); 
             renderAttendance($this, attendanceInfo);
-        });                
+        });        
+        
+        $('#addAttendanceRole').click (function() {
+            addRole(this, $('#attendanceRoles'));
+        })               
+        
+        $('#attendanceRoles').on('click', '.removeAttendanceRole', function() {
+            $(this).closest('tr').remove();
+        });
     });
 })(jQuery);

@@ -14,30 +14,76 @@ class plgJEventsSimpleAttendance extends JPlugin
     function getAttendees($repetitionId) {        
         $db    = JFactory::getDbo();
         $query = $db->getQuery(true);            
-        $query->select('user_id') 
+        $query->select(array('user_id', 'role')) 
                 ->from($db->quoteName('#__simple_attendance'))
                 ->where(array('rp_id = '.(int)$repetitionId));
         $db->setQuery($query);
         $results = $db->loadObjectList();
         
-        $attendees = array();
+        $attendees = array();                
         
-        foreach ($results as $result) {
-            $attendees[] = JFactory::getUser($result->user_id);
+        foreach ($results as $result) {            
+            if (!isset($attendees[$result->role])) {
+                $attendees[$result->role] = array();
+            }
+            
+            $attendees[$result->role][] = JFactory::getUser($result->user_id);
         }
         
         return $attendees;
     }   
     
-    function getAttendanceInfo($repetitionId, $userId) {
-        $attendees = $this->getAttendees($repetitionId);
-        $getUserName = function($user) {return $user->username;};
-        $notMeFilter = function($otherUser) use($userId) {return $userId != $otherUser->id;};
+    function getRoles($eventId, $repetitionId) {
+        $db    = JFactory::getDbo();
+        $query = $db->getQuery(true);            
+        $query->select('rawdata') 
+                ->from($db->quoteName('#__jevents_vevent'))
+                ->where(array('ev_id = '.(int)$eventId));
+        $db->setQuery($query);
+        $results = $db->loadObjectList();
         
-        $result = new stdClass();
-        $result->repetitionId = $repetitionId;
-        $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
-        $result->attendMyself = count($attendees) > count($result->otherAttendees);
+        $rawData = unserialize($results[0]->rawdata);
+        
+        if (isset($rawData['custom_AttendanceRoles'])) {
+            return $rawData['custom_AttendanceRoles'];
+        } else {
+            return array();
+        }
+    }    
+    
+    function getAttendanceInfo($eventId, $repetitionId, $userId) {
+        $attendeesOfAllRoles = $this->getAttendees($repetitionId);        
+        $roles = $this->getRoles($eventId, $repetitionId);
+        $getAttendanceRoleInfo = function($attendees) use ($repetitionId, $eventId, $userId) {            
+            $getUserName = function($user) {return $user->username;};
+            $notMeFilter = function($otherUser) use($userId) {return $userId != $otherUser->id;};
+                    
+            $result = new stdClass();
+            $result->repetitionId = $repetitionId;
+            $result->eventId = $eventId;
+            $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
+            $result->attendMyself = count($attendees) > count($result->otherAttendees);
+            $result->allowNewAttendees = false;
+            $result->targetCount = null;
+            return $result;
+        };
+        
+        $result = array_map($getAttendanceRoleInfo, $attendeesOfAllRoles);
+        
+        foreach ($roles as $role) {            
+            if (!isset($result[$role['name']])) {
+                $result[$role['name']] = new stdClass();
+                $result[$role['name']]->repetitionId = $repetitionId;
+                $result[$role['name']]->otherAttendees = array();
+                $result[$role['name']]->attendMyself = false;                
+                $result[$role['name']]->eventId = $eventId;
+            }
+            
+            $result[$role['name']]->allowNewAttendees = true;
+            $result[$role['name']]->targetCount = $role['count'];
+        }
+        
+        ksort($result);
         return $result;
     }
     //End of duplicated code from plgAjaxSimpleAttendance
@@ -70,7 +116,7 @@ class plgJEventsSimpleAttendance extends JPlugin
     function onDisplayCustomFields(&$row){                  
         JHtml::_('jquery.framework');        
         $userId       = JFactory::getUser()->id;
-        $attendenceInfo = $this->getAttendanceInfo($row->rp_id(), $userId);                     
+        $attendenceInfo = $this->getAttendanceInfo($row->ev_id(), $row->rp_id(), $userId);                     
         
         $attendenceInfoEscaped = htmlspecialchars(json_encode($attendenceInfo));
         $row->_attendance = 
@@ -79,30 +125,13 @@ class plgJEventsSimpleAttendance extends JPlugin
         return $row->_attendance;
     }
     
-    function getRoles($row) {
-        $db    = JFactory::getDbo();
-        $query = $db->getQuery(true);            
-        $query->select('rawdata') 
-                ->from($db->quoteName('#__jevents_vevent'))
-                ->where(array('ev_id = '.(int)$row->ev_id()));
-        $db->setQuery($query);
-        $results = $db->loadObjectList();
-        
-        $rawData = unserialize($results[0]->rawdata);
-        
-        if (isset($rawData['custom_AttendanceRoles'])) {
-            return $rawData['custom_AttendanceRoles'];
-        } else {
-            return array();
-        }
-    }
     
     function onEditCustom(&$row, &$customFields){ 
          $customField = array();
          $customField['group'] = 'default';
          $customField['label'] = 'TestLabel';
                   
-         $roles = $this->getRoles($row);
+         $roles = $this->getRoles($row->ev_id(), null);
          $roleToInput = function($index, $role) { 
              return "<tr><td><input class=\"attendanceRole\" type=\"text\" name=\"custom_AttendanceRoles[$index][name]\" value=\"{$role['name']}\"/></td>".
                     "<td><input type=\"text\" name=\"custom_AttendanceRoles[$index][count]\" value=\"{$role['count']}\"/></td>".

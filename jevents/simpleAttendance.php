@@ -80,7 +80,7 @@ class plgJEventsSimpleAttendance extends JPlugin
             }
             
             $result[$role['name']]->allowNewAttendees = true;
-            $result[$role['name']]->targetCount = $role['count'];
+            $result[$role['name']]->targetCount = empty($role['count']) ? null : $role['count'];
         }
         
         ksort($result);

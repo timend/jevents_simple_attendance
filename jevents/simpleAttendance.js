@@ -6,9 +6,29 @@
             } else if (items.length === 1) {
                 return items[0];
             } else {    
-                return items.slice(0, items.length-1).join(', ') + ' und ' + items[items.length - 1] + ' (' + items.length + ')';                    
+                return items.slice(0, items.length-1).join(', ') + ' und ' + items[items.length - 1];                    
             }
         };
+        
+        var renderLength = function(actualLength, maximumLength) {
+            if (maximumLength === null) {
+                return ' (' + actualLength + ')';
+            } else {
+                return ' (' + actualLength + '/' + maximumLength + ')';
+            }
+        }
+        
+        var getTargetCountClass = function(actualLength, maximumLength) {
+            if (maximumLength === null) {
+                return 'no-target-count';
+            } else {
+                if (actualLength >= maximumLength) {
+                    return 'target-count-reached';
+                } else {
+                    return 'target-count-not-reached';
+                }
+            }
+        }
 
         var renderAttendance = function(element, attendanceInfo) {  
             element.html('');
@@ -16,8 +36,8 @@
             $.each(attendanceInfo, function(roleName, attendanceInfo) {
                 var html = '';
                 var attendees = attendanceInfo.attendMyself ? [simpleAttendance.ME_LBL].concat(attendanceInfo.otherAttendees) : attendanceInfo.otherAttendees;                        
-                html += '<div class=\'role\'>';
-                html += roleName + ': ' + renderList(attendees);                                            
+                html += '<div class=\'role ' + getTargetCountClass(attendees.length, attendanceInfo.targetCount) + '\'>';
+                html += roleName + renderLength(attendees.length, attendanceInfo.targetCount) + ': ' + renderList(attendees);                                            
 
                 if (attendanceInfo.attendMyself) {
                     html += '<a>Als ' + roleName + ' absagen</a>';

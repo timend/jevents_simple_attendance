@@ -73,9 +73,9 @@
         }
 
         var addRole = function(button) {            
-            var index = $('input.attendanceRole').max(function() {
+            var index = Math.max($('input.attendanceRole').max(function() {
                 return parseInt(this.name.match(/custom_AttendanceRoles\[(\d+)\]/)[1]);
-            }) + 1;
+            }) + 1, 0);
             $('#attendanceRoles tr:last').after(
                 '<tr>' +
                 '<td><input class="attendanceRole" type="text" name="custom_AttendanceRoles['+index+'][name]" value=""/></td>' +

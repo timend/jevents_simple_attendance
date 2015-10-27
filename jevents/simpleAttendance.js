@@ -91,12 +91,13 @@
             renderAttendance($this, attendanceInfo);
         });        
         
-        $('#addAttendanceRole').click (function() {
-            addRole(this, $('#attendanceRoles'));
-        })               
+        // TODO: Disable handlers if links have attribute "disabled"
+        $('#addAttendanceRole').click (function() {            
+            addRole(this, $('#attendanceRoles'));            
+        });
         
-        $('#attendanceRoles').on('click', '.removeAttendanceRole', function() {
-            $(this).closest('tr').remove();
+        $('#attendanceRoles').on('click', '.removeAttendanceRole', function() {            
+            $(this).closest('tr').remove();            
         });
     });
 })(jQuery);

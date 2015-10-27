@@ -130,18 +130,27 @@ class plgJEventsSimpleAttendance extends JPlugin
          $customField = array();
          $customField['group'] = 'default';
          $customField['label'] = 'TestLabel';
-                  
+                           
+         $isRepetitionEdit = method_exists($row, 'rp_id');         
+         $disabled = $isRepetitionEdit ? " disabled=\"disabled\"" : "";
+         
          $roles = $this->getRoles($row->ev_id(), null);
-         $roleToInput = function($index, $role) { 
-             return "<tr><td><input class=\"attendanceRole\" type=\"text\" name=\"custom_AttendanceRoles[$index][name]\" value=\"{$role['name']}\"/></td>".
-                    "<td><input type=\"text\" name=\"custom_AttendanceRoles[$index][count]\" value=\"{$role['count']}\"/></td>".
-                    "<td><a class=\"btn btn-small removeAttendanceRole\">Löschen</a></td>".
-                    "</tr>";              
+         $roleToInput = function($index, $role) use ($disabled) { 
+            return "<tr><td><input $disabled class=\"attendanceRole\" type=\"text\" name=\"custom_AttendanceRoles[$index][name]\" value=\"{$role['name']}\"/></td>".
+               "<td><input $disabled type=\"text\" name=\"custom_AttendanceRoles[$index][count]\" value=\"{$role['count']}\"/></td>".
+               "<td><a $disabled class=\"btn btn-small removeAttendanceRole\">Löschen</a></td>".
+               "</tr>";                       
          };
+                         
+         $input = '';
          
-         $input = '<table id="attendanceRoles"><tr><th>Art der Teilnehmer</th><th>Zielanzahl</th><th></tr>' . join('', array_map($roleToInput, array_keys($roles), $roles)) . '</table>';
+         if ($isRepetitionEdit) {
+             $input = '<p><strong>Teilnehmerrollen k&ouml;nnen nur im Hauptevent editiert werden, nicht in der Wiederholung!</strong></p>';
+         }
          
-         $customField['input'] = $input . '<br/><a class="btn btn-small" id="addAttendanceRole">Teilnehmer-Art hinzufügen</a>';
+         $input .= '<table id="attendanceRoles"><tr><th>Art der Teilnehmer</th><th>Zielanzahl</th><th></tr>' . join('', array_map($roleToInput, array_keys($roles), $roles)) . '</table>';
+
+         $customField['input'] = $input . "<br/><a $disabled class=\"btn btn-small\" id=\"addAttendanceRole\">Teilnehmer-Art hinzufügen</a>";
          $customFields['JEV_SIMPLE_ATTENDANCE_OPTIONS'] = $customField;
     }    
 

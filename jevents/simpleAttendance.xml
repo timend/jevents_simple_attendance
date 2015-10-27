@@ -6,14 +6,14 @@
 	<license>http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL</license>
 	<authorEmail></authorEmail>
 	<authorUrl></authorUrl>
-	<version>0.0.2</version>
+	<version>0.0.1</version>
 	<description>Allows registered users to attend to one or more events</description>
 	<languages folder="language">
             <language tag="en-GB">en-GB.plg_jevents_simple_attendance.ini</language>
 	</languages>
 	<files>
 		<filename plugin="simpleAttendance">simpleAttendance.php</filename>		
-                <filename>simpleAttendance.js</filename>		
+        <filename>simpleAttendance.js</filename>		
 		<folder>sql</folder>		
 	</files>        
         <install>
@@ -21,11 +21,6 @@
                 <file driver="mysql" charset="utf8">sql/install.mysql.utf8.sql</file>
             </sql>
         </install>
-        <update> 
-            <schemas> 
-		<schemapath type="mysql">sql/updates</schemapath> 
-            </schemas> 
-        </update>
 	<config>
 		<!--<fields name="params">
 			<fieldset name="basic">

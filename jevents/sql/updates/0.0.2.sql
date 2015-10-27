@@ -1,2 +1,0 @@
-ALTER TABLE `#__simple_attendance` ADD `role` VARCHAR(128) NOT NULL DEFAULT 'Helfer' AFTER `user_id`;
-ALTER TABLE `#__simple_attendance` DROP PRIMARY KEY, ADD PRIMARY KEY (`rp_id`, `role`, `user_id`) USING BTREE;

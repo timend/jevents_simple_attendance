@@ -36,7 +36,7 @@ class plgJEventsSimpleAttendance extends JPlugin
         
         $result = new stdClass();
         $result->repetitionId = $repetitionId;
-        $result->otherAttendees = array_map($getUserName, array_filter($attendees, $notMeFilter));
+        $result->otherAttendees = array_map($getUserName, array_values(array_filter($attendees, $notMeFilter)));
         $result->attendMyself = count($attendees) > count($result->otherAttendees);
         return $result;
     }
